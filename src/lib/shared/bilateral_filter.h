@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace MeanField {
 	namespace Filtering {
+#ifndef WITH_PERMUTOHEDRAL
 		/**
 			 * \brief Applies a gaussian kernel to an input tensor.
 			 * Applies filter along each slice defined by the plane given by the tensors first and second dimensions.
@@ -197,6 +198,18 @@ namespace MeanField {
 
 			delete[] channelSums;
 		}
+#else
+		__SHARED_CODE__
+		inline void generateBilateralKernelPoint(float *kernel, const unsigned char *rgb, int idx, int width, 
+												float spat_sd, float intensity_sd) {
+			kernel[5 * idx] = (float)(idx % width) / spat_sd;
+			kernel[5 * idx + 1] = (float)(idx / width) / spat_sd;
+
+			kernel[5 * idx + 2] = (float)rgb[3 * idx] / intensity_sd;
+			kernel[5 * idx + 3] = (float)rgb[3 * idx + 1] / intensity_sd;
+			kernel[5 * idx + 4] = (float)rgb[3 * idx + 2] / intensity_sd;
+		}
+#endif
 	}
 }
 

@@ -35,16 +35,21 @@ CRF::CRF(int width, int height, int dimensions, float spatialSD,
 	spatialSD(spatialSD), bilateralSpatialSD(bilateralSpatialSD),
 	bilateralIntensitySD(bilateralIntensitySD),
 	separable(separable),
-	QDistribution(new float[width*height*dimensions]()),
-	QDistributionTmp(new float[width*height*dimensions]()),
-	pottsModel(new float[dimensions*dimensions]()),
-	gaussianOut(new float[width*height*dimensions]()),
-	bilateralOut(new float[width*height*dimensions]()),
-	aggregatedFilters(new float[width*height*dimensions]()),
-	filterOutTmp(new float[width*height*dimensions]()),
+	QDistribution(new float[width * height * dimensions]()),
+	QDistributionTmp(new float[width * height * dimensions]()),
+	pottsModel(new float[dimensions * dimensions]()),
+	gaussianOut(new float[width * height * dimensions]()),
+	bilateralOut(new float[width * height * dimensions]()),
+	aggregatedFilters(new float[width * height * dimensions]()),
+	filterOutTmp(new float[width * height * dimensions]()),
+#ifndef WITH_PERMUTOHEDRAL
 	spatialKernel(new float[KERNEL_SIZE]()),
 	bilateralSpatialKernel(new float[KERNEL_SIZE]()),
 	bilateralIntensityKernel(new float[KERNEL_SIZE]()) {
+#else
+	spatialKernel(new float[2 * width * height]()),
+	bilateralKernel(new float[5 * width * height]()) {
+#endif
 
 	//Initialise potts model.
 	for (int i = 0; i < dimensions; i++) {
@@ -54,9 +59,18 @@ CRF::CRF(int width, int height, int dimensions, float spatialSD,
 	}
 
 	//Initialise kernels.
+#ifndef WITH_PERMUTOHEDRAL
 	generateGaussianKernel(spatialKernel.get(), KERNEL_SIZE, spatialSD);
 	generateGaussianKernel(bilateralSpatialKernel.get(), KERNEL_SIZE, bilateralSpatialSD);
 	generateGaussianKernel(bilateralIntensityKernel.get(), KERNEL_SIZE, bilateralIntensitySD);
+#else
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+	for (int i=0; i < width * height; i++) {
+		generateGaussianKernelPoint(spatialKernel.get(), i, width, spatialSD);
+	}
+#endif
 }
 
 CRF::~CRF() {

@@ -40,7 +40,12 @@ namespace MeanField {
 			std::unique_ptr<float[]> QDistribution, QDistributionTmp;
 			std::unique_ptr<float[]> pottsModel;
 			std::unique_ptr<float[]> gaussianOut, bilateralOut, aggregatedFilters, filterOutTmp;
+#ifndef WITH_PERMUTOHEDRAL
 			std::unique_ptr<float[]> spatialKernel, bilateralSpatialKernel, bilateralIntensityKernel;
+#else
+			std::unique_ptr<float[]> spatialKernel, bilateralKernel;
+			std::unique_ptr<Permutohedral::ModifiedPermutohedral> spatialLattice, bilateralLattice;
+#endif
 
 		protected:
 			void filterGaussian(const float *unaries);

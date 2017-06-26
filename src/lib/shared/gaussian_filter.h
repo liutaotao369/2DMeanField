@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace MeanField {
 	namespace Filtering {
+#ifndef WITH_PERMUTOHEDRAL
 		/**
 				 * \brief Generates a 1 dimensional Gaussian kernel with a given standard deviation and size.
 				 *
@@ -163,6 +164,13 @@ namespace MeanField {
 			}
 			delete[] channelSums;
 		}
+#else
+		__SHARED_CODE__
+		inline void generateGaussianKernelPoint(float *kernel, int idx, int width, float sd) {
+			kernel[2 * idx] = (float)(idx % width) / sd;
+			kernel[2 * idx + 1] = (float)(idx / width) / sd;
+		}
+#endif
 	}
 }
 
