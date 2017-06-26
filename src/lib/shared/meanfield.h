@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "code_sharing.h"
 
 #ifdef WITH_PERMUTOHEDRAL
-//#include "modified_permutohedral.hpp"
+#include "modified_permutohedral.hpp"
 #endif
 
 #include "gaussian_filter.h"

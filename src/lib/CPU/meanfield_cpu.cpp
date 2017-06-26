@@ -88,7 +88,10 @@ void CRF::setBilateralWeight(float weight) {
 }
 
 void CRF::reset() {
-	for (int i = 0; i < width*height*dimensions; i++) {
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+	for (int i = 0; i < width * height * dimensions; i++) {
 		QDistribution[i] = 0.0;
 		QDistributionTmp[i] = 0.0;
 		gaussianOut[i] = 0.0;
@@ -102,6 +105,7 @@ const float *CRF::getQ() {
 }
 
 void CRF::filterGaussian(const float *unaries) {
+#ifndef WITH_PERMUTOHEDRAL
 	if (!separable) {
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
@@ -124,9 +128,13 @@ void CRF::filterGaussian(const float *unaries) {
 			}
 		}
 	}
+#else
+//Do permutohedral lattice filtering.
+#endif
 }
 
 void CRF::filterBilateral(const float *unaries, const unsigned char *image) {
+#ifndef WITH_PERMUTOHEDRAL
 	if (!separable) {
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
@@ -153,40 +161,47 @@ void CRF::filterBilateral(const float *unaries, const unsigned char *image) {
 			}
 		}
 	}
+#else
+	//
+#endif
 }
 
 void CRF::weightAndAggregate() {
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			for (int k = 0; k < dimensions; k++) {
-				int idx = (i*width + j)*dimensions + k;
-				weightAndAggregateIndividual(gaussianOut.get(), bilateralOut.get(), aggregatedFilters.get(),
-					spatialWeight, bilateralWeight, idx);
-			}
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+	for (int i = 0; i < height * width; i++) {
+		for (int k = 0; k < dimensions; k++) {
+			int idx = i * dimensions + k;
+			weightAndAggregateIndividual(gaussianOut.get(), bilateralOut.get(), aggregatedFilters.get(),
+					spatialWeight, bilateralWeight, i);
 		}
 	}
 }
 
 void CRF::applyCompatabilityTransform() {
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			int idx = i*width + j;
-			applyCompatabilityTransformIndividual(pottsModel.get(), aggregatedFilters.get(), idx, dimensions);
-		}
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+	for (int i = 0; i < height * width; i++) {
+		applyCompatabilityTransformIndividual(pottsModel.get(), aggregatedFilters.get(), i, dimensions);
 	}
 }
 
 void CRF::subtractQDistribution(const float *unaries, const float *QDist, float *out) {
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
 	for (int i = 0; i < width*height*dimensions; i++) {
 		out[i] = unaries[i] - QDist[i];
 	}
 }
 
 void CRF::applySoftmax(const float *QDist, float *out) {
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			int idx = i*width + j;
-			applySoftmaxIndividual(QDist, out, idx, dimensions);
-		}
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+	for (int i = 0; i < height * width; i++) {
+		applySoftmaxIndividual(QDist, out, i, dimensions);
 	}
 }
