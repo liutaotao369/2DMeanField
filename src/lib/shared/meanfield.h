@@ -27,6 +27,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MEANFIELD_SHARED_HEADER
 
 #include "code_sharing.h"
+
+#ifdef WITH_PERMUTOHEDRAL
+//#include "modified_permutohedral.hpp"
+#endif
+
 #include "gaussian_filter.h"
 #include "bilateral_filter.h"
 
