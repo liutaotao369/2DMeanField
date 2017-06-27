@@ -201,13 +201,13 @@ namespace MeanField {
 #else
 		__SHARED_CODE__
 		inline void generateBilateralKernelPoint(float *kernel, const unsigned char *rgb, int idx, int width, 
-												float spat_sd, float intensity_sd) {
-			kernel[5 * idx] = (float)(idx % width) / spat_sd;
-			kernel[5 * idx + 1] = (float)(idx / width) / spat_sd;
+												float spatialSD, float intensitySD) {
+			kernel[5 * idx] = (float)(idx % width) / spatialSD;
+			kernel[5 * idx + 1] = (float)(idx / width) / spatialSD;
 
-			kernel[5 * idx + 2] = (float)rgb[3 * idx] / intensity_sd;
-			kernel[5 * idx + 3] = (float)rgb[3 * idx + 1] / intensity_sd;
-			kernel[5 * idx + 4] = (float)rgb[3 * idx + 2] / intensity_sd;
+			kernel[5 * idx + 2] = (float)rgb[3 * idx] / intensitySD;
+			kernel[5 * idx + 3] = (float)rgb[3 * idx + 1] / intensitySD;
+			kernel[5 * idx + 4] = (float)rgb[3 * idx + 2] / intensitySD;
 		}
 #endif
 	}

@@ -25,6 +25,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "meanfield_cpu.h"
 
+#include <iostream>
+
 using namespace MeanField::CPU;
 using namespace MeanField::Filtering;
 
@@ -48,13 +50,18 @@ CRF::CRF(int width, int height, int dimensions, float spatialSD,
 	bilateralIntensityKernel(new float[KERNEL_SIZE]()) {
 #else
 	spatialKernel(new float[2 * width * height]()),
-	bilateralKernel(new float[5 * width * height]()) {
+	bilateralKernel(new float[5 * width * height]()),
+	spatialNorm(new float[width * height]()),
+	bilateralNorm(new float[width * height]()),
+	onesImage(new float[width * height]()),
+	spatialLattice(new Permutohedral::ModifiedPermutohedral()),
+	bilateralLattice(new Permutohedral::ModifiedPermutohedral()) {
 #endif
 
 	//Initialise potts model.
 	for (int i = 0; i < dimensions; i++) {
 		for (int j = 0; j < dimensions; j++) {
-			pottsModel[i*dimensions + j] = (i == j) ? -1.0 : 0.0;
+			pottsModel[i * dimensions + j] = (i == j) ? -1.0 : 0.0;
 		}
 	}
 
@@ -64,13 +71,36 @@ CRF::CRF(int width, int height, int dimensions, float spatialSD,
 	generateGaussianKernel(bilateralSpatialKernel.get(), KERNEL_SIZE, bilateralSpatialSD);
 	generateGaussianKernel(bilateralIntensityKernel.get(), KERNEL_SIZE, bilateralIntensitySD);
 #else
+	//Generate ones image for computing normalisers.
+	float *onesData = onesImage.get();
 #ifdef WITH_OPENMP
 #pragma omp parallel for schedule(dynamic)
 #endif
-	for (int i=0; i < width * height; i++) {
-		generateGaussianKernelPoint(spatialKernel.get(), i, width, spatialSD);
+	for (int i = 0; i < width * height; i++) {
+		onesData[i] = 1.0;
 	}
+
+	//Generate spatial kernel.
+	float *spatialKernelData = spatialKernel.get();
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
 #endif
+	for (int i = 0; i < width * height; i++) {
+		generateGaussianKernelPoint(spatialKernelData, i, width, spatialSD);
+	}
+	//Initialise spatial lattice and compute norm image.
+	spatialLattice->init(spatialKernel.get(), 2, width, height);
+	spatialLattice->compute(spatialNorm.get(), onesImage.get(), 1);
+
+	//Add small constant to norm.
+	float *spatialNormData = spatialNorm.get();
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+	for (int i = 0; i < width * height; i++) {
+		spatialNormData[i] += 1e-20;
+	}
+#endif	
 }
 
 CRF::~CRF() {
@@ -78,6 +108,33 @@ CRF::~CRF() {
 }
 
 void CRF::runInference(const unsigned char *image, const float *unaries, int iterations) {
+#ifdef WITH_PERMUTOHEDRAL
+	//Generate bilateral kernel.
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+	for (int i = 0; i < width * height; i++) {
+		generateBilateralKernelPoint(bilateralKernel.get(), image, i, width, bilateralSpatialSD, bilateralIntensitySD);
+	}
+
+	//Reset bilateral lattice.
+	bilateralLattice.reset(new Permutohedral::ModifiedPermutohedral());
+
+	//Initialise spatial lattice and compute norm image.
+	bilateralLattice->init(bilateralKernel.get(), 5, width, height);
+	bilateralLattice->compute(bilateralNorm.get(), onesImage.get(), 1);
+
+	//Add small constant to norm.
+	float *bilateralNormData = bilateralNorm.get();
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+	for (int i = 0; i < width * height; i++) {
+		bilateralNormData[i] += 1e-20;
+	}
+#endif//End setup for bilateral lattice.
+
+	//Run inference.
 	runInferenceIteration(image, unaries);
 	for (int i = 0; i < iterations - 1; i++) {
 		runInferenceIteration(image, QDistribution.get());
@@ -143,7 +200,19 @@ void CRF::filterGaussian(const float *unaries) {
 		}
 	}
 #else
-//Do permutohedral lattice filtering.
+	spatialLattice->compute(gaussianOut.get(), unaries, dimensions);
+	//Normalise the output.
+	float *gaussianData = gaussianOut.get();
+	float *normData = spatialNorm.get();
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+	for (int i = 0; i < width * height; i++) {
+		for (int j = 0; j < dimensions; j++) {
+			int idx = i * dimensions + j;
+			gaussianData[idx] /= normData[i];
+		}
+	}
 #endif
 }
 
@@ -176,7 +245,20 @@ void CRF::filterBilateral(const float *unaries, const unsigned char *image) {
 		}
 	}
 #else
-	//
+	bilateralLattice->compute(bilateralOut.get(), unaries, dimensions);
+	//Normalise the output.
+	float *bilateralData = bilateralOut.get();
+	float *normData = bilateralNorm.get();
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+	for (int i = 0; i < width * height; i++) {
+		for (int j = 0; j < dimensions; j++) {
+			int idx = i * dimensions + j;
+			bilateralData[idx] /= normData[i];
+			std::cout << bilateralData[idx] << std::endl;
+		}
+	}
 #endif
 }
 
@@ -188,7 +270,7 @@ void CRF::weightAndAggregate() {
 		for (int k = 0; k < dimensions; k++) {
 			int idx = i * dimensions + k;
 			weightAndAggregateIndividual(gaussianOut.get(), bilateralOut.get(), aggregatedFilters.get(),
-					spatialWeight, bilateralWeight, i);
+					spatialWeight, bilateralWeight, idx);
 		}
 	}
 }
@@ -206,7 +288,7 @@ void CRF::subtractQDistribution(const float *unaries, const float *QDist, float 
 #ifdef WITH_OPENMP
 #pragma omp parallel for schedule(dynamic)
 #endif
-	for (int i = 0; i < width*height*dimensions; i++) {
+	for (int i = 0; i < width * height * dimensions; i++) {
 		out[i] = unaries[i] - QDist[i];
 	}
 }

@@ -30,3 +30,7 @@ if(WITH_CUDA)
 else()
   add_library(2DMeanField ${SHARED_HEADERS} ${CPU_HEADERS} ${CPU_SOURCES})
 endif()
+
+if(PERMUTOHEDRAL)
+target_link_libraries(2DMeanField ${Permutohedral_LIBRARY})
+endif(PERMUTOHEDRAL)

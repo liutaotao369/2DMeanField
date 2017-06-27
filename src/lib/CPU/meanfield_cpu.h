@@ -44,6 +44,7 @@ namespace MeanField {
 			std::unique_ptr<float[]> spatialKernel, bilateralSpatialKernel, bilateralIntensityKernel;
 #else
 			std::unique_ptr<float[]> spatialKernel, bilateralKernel;
+			std::unique_ptr<float[]> spatialNorm, bilateralNorm, onesImage;
 			std::unique_ptr<Permutohedral::ModifiedPermutohedral> spatialLattice, bilateralLattice;
 #endif
 
