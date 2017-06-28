@@ -8,3 +8,7 @@ set(APP_SOURCES
 
 add_executable(MeanFieldDemo ${APP_HEADERS} ${APP_SOURCES})
 target_link_libraries(MeanFieldDemo ${PROJECT_NAME} ${OpenCV_LIBS})
+
+if(PERMUTOHEDRAL)
+target_link_libraries(MeanFieldDemo ${Permutohedral_LIBRARY})
+endif(PERMUTOHEDRAL)

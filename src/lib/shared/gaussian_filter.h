@@ -167,8 +167,8 @@ namespace MeanField {
 #else
 		__SHARED_CODE__
 		inline void generateGaussianKernelPoint(float *kernel, int idx, int width, float sd) {
-			kernel[2 * idx] = (float)(idx % width) / sd;
-			kernel[2 * idx + 1] = (float)(idx / width) / sd;
+			kernel[2 * idx] = ((float)(idx % width)) / sd;
+			kernel[2 * idx + 1] = ((float)(idx / width)) / sd;
 		}
 #endif
 	}
