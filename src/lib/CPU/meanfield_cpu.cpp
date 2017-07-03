@@ -177,25 +177,34 @@ const float *CRF::getQ() {
 void CRF::filterGaussian(const float *unaries) {
 #ifndef WITH_PERMUTOHEDRAL
 	if (!separable) {
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) {
-				applyGaussianKernel(spatialKernel.get(), unaries, gaussianOut.get(), spatialSD, dimensions, j, i, width, height);
-			}
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+		for (int i = 0; i < width * height; i++) {
+			int x = i % width;
+			int y = i / width;
+			applyGaussianKernel(spatialKernel.get(), unaries, gaussianOut.get(), spatialSD, dimensions, x, y, width, height);
 		}
 	}
 	else {
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) {
-				applyGaussianKernelX(unaries, filterOutTmp.get(), spatialKernel.get(), spatialSD,
-					dimensions, j, i, width, height);
-			}
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+		for (int i = 0; i < width * height; i++) {
+			int x = i % width;
+			int y = i / width;
+			applyGaussianKernelX(unaries, filterOutTmp.get(), spatialKernel.get(), spatialSD,
+				dimensions, x, y, width, height);
 		}
 
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) {
-				applyGaussianKernelY(filterOutTmp.get(), gaussianOut.get(), spatialKernel.get(), spatialSD,
-					dimensions, j, i, width, height);
-			}
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+		for (int i = 0; i < width * height; i++) {
+			int x = i % width;
+			int y = i / width;
+			applyGaussianKernelY(filterOutTmp.get(), gaussianOut.get(), spatialKernel.get(), spatialSD,
+				dimensions, x, y, width, height);
 		}
 	}
 #else
@@ -218,29 +227,38 @@ void CRF::filterGaussian(const float *unaries) {
 void CRF::filterBilateral(const float *unaries, const unsigned char *image) {
 #ifndef WITH_PERMUTOHEDRAL
 	if (!separable) {
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) {
-				applyBilateralKernel(bilateralSpatialKernel.get(), bilateralIntensityKernel.get(), unaries,
-					image, bilateralOut.get(), bilateralSpatialSD, bilateralIntensitySD,
-					dimensions, j, i, width, height);
-			}
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+		for (int i = 0; i < width * height; i++) {
+			int x = i % width;
+			int y = i / width;
+			applyBilateralKernel(bilateralSpatialKernel.get(), bilateralIntensityKernel.get(), unaries,
+				image, bilateralOut.get(), bilateralSpatialSD, bilateralIntensitySD,
+				dimensions, x, y, width, height);
 		}
 	}
 	else {
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) {
-				applyBilateralKernelX(unaries, filterOutTmp.get(), image, bilateralSpatialKernel.get(),
-					bilateralIntensityKernel.get(), bilateralSpatialSD, bilateralIntensitySD,
-					dimensions, j, i, width, height);
-			}
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+		for (int i = 0; i < width * height; i++) {
+			int x = i % width;
+			int y = i / width;
+			applyBilateralKernelX(unaries, filterOutTmp.get(), image, bilateralSpatialKernel.get(),
+				bilateralIntensityKernel.get(), bilateralSpatialSD, bilateralIntensitySD,
+				dimensions, x, y, width, height);
 		}
 
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) {
-				applyBilateralKernelY(filterOutTmp.get(), bilateralOut.get(), image, bilateralSpatialKernel.get(),
-					bilateralIntensityKernel.get(), bilateralSpatialSD, bilateralIntensitySD,
-					dimensions, j, i, width, height);
-			}
+#ifdef WITH_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+		for (int i = 0; i < width * height; i++) {
+			int x = i % width;
+			int y = i / width;
+			applyBilateralKernelY(filterOutTmp.get(), bilateralOut.get(), image, bilateralSpatialKernel.get(),
+				bilateralIntensityKernel.get(), bilateralSpatialSD, bilateralIntensitySD,
+				dimensions, x, y, width, height);
 		}
 	}
 #else
